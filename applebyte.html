@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cothelite Pro</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        body {
+            font-family: Leelawadee, sans-serif;
+            background-color: #e0f2f1;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+        }
+        .logo {
+            margin-left: 20px;
+            font-size:30px;
+            font-weight: bold;
+            color: #87CEEB;
+        }
+        .search-container {
+            margin-top: 50px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .search-bar {
+            width: 70%;
+            max-width: 600px;
+            padding: 15px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 25px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        #searchButton {
+            padding: 15px 25px;
+            font-size: 18px;
+            border: none;
+            border-radius: 25px;
+            background-color: #87CEEB;
+            color: white;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        #searchButton:hover {
+            background-color: #004d40;
+        }
+        .info-box {
+            margin-top: 30px;
+            width: 80%;
+            max-width: 800px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        #downloadButton {
+            display: none;
+            padding: 15px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background-color: #87CEEB;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease, transform 0.2s;
+        }
+        #downloadButton:hover {
+            background-color: #5DADE2;
+            transform: scale(1.05);
+        }
+        #downloadButton:active {
+            background-color: #3498DB;
+            transform: scale(0.95);
+        }
+        #progressIcon {
+            display: none;
+            margin-top: 20px;
+        }
+        #queueStatus {
+            display: none;
+            font-size: 18px;
+            margin-top: 15px;
+            color: #004d40;
+        }
+        #errorMessage {
+            display: none;
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">CothelitePro</div>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-bar" placeholder="Insert a valid Apple Music link here...">
+        <button id="searchButton">Submit</button>
+    </div>
+
+    <div class="info-box">
+        <p>Welcome to CothelitePro.<small><sup>BETA</sup><big> Download your favorite music, playlists and music videos from Apple Music for free.<br><br><br><small><small><strong><i>Apple Music subscription not required.</i></strong></small></small></p>
+    </div>
+
+    <div id="progressIcon">
+        <img src="/static/loading.gif" alt="Processing..." width="50px">
+    </div>
+
+    <div id="queueStatus"></div>
+
+    <div class="button-container">
+        <button id="downloadButton">Download File</button>
+    </div>
+
+    <div id="errorMessage"></div>
+
+    <script>
+        document.getElementById("searchInput").addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        document.getElementById("searchButton").click();
+    }
+});
+
+document.getElementById("searchButton").addEventListener("click", async () => {
+    let userInput = document.getElementById("searchInput").value;
+    let progressIcon = document.getElementById("progressIcon");
+    let queueStatus = document.getElementById("queueStatus");
+    let downloadButton = document.getElementById("downloadButton");
+    let errorBox = document.getElementById("errorMessage");
+
+    errorBox.style.display = "none";  
+    progressIcon.style.display = "block"; 
+    queueStatus.style.display = "none";
+    downloadButton.style.display = "none"; 
+
+    try {
+        let processResponse = await fetch("https://vast-camels-admire.loca.lt/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_input: userInput })
+        });
+        
+        let processData = await processResponse.json();
+
+        if (!processResponse.ok) {
+             throw new Error(processData.detail || "Processing failed!");
+         }
+        
+        queueStatus.style.display = "block";
+        queueStatus.innerText = `Your request is queued at position: ${processData.position}`;
+
+        console.log("Processing started...");
+        checkForZipFile();  
+    } catch (error) {
+        progressIcon.style.display = "none";  
+        errorBox.style.display = "block";  
+        errorBox.innerText = `Error: ${error.message}`;
+        console.error("Processing error:", error);
+    }
+});
+
+async function checkForZipFile() {
+    let attempts = 0;
+    const maxAttempts = 200; 
+
+    while (attempts < maxAttempts) {
+        try {
+            let downloadResponse = await fetch("https://vast-camels-admire.loca.lt/download-zip");
+
+            if (downloadResponse.ok) {
+                let blob = await downloadResponse.blob();
+                const filename = getFilenameFromResponse(downloadResponse);
+
+                let progressIcon = document.getElementById("progressIcon");
+                let queueStatus = document.getElementById("queueStatus");
+                let downloadButton = document.getElementById("downloadButton");
+
+                progressIcon.style.display = "none";
+                queueStatus.style.display = "none";
+                downloadButton.style.display = "block";
+
+                downloadButton.addEventListener("click", () => {
+                    let link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+
+                console.log(`✅ Download successful! File saved as: ${filename}`);
+                return;
+            } else if (downloadResponse.status === 404) {
+                console.log("⏳ File still downloading. Please do not refresh.");
+                await new Promise(resolve => setTimeout(resolve, 10000)); 
+                attempts++;
+            } else {
+                throw new Error(`❌ Error downloading file: ${downloadResponse.statusText}`);
+            }
+        } catch (error) {
+            console.error(error);
+            return;
+        }
+    }
+
+    console.error("❌ ZIP file not available after multiple retries.");
+}
+
+function getFilenameFromResponse(response) {
+    const disposition = response.headers.get("Content-Disposition");
+    if (disposition && disposition.includes("filename=")) {
+        return disposition.split("filename=")[1].replace(/"/g, "").trim();
+    }
+    return null;
+}
+
+    </script>
+
+</body>
+</html>
